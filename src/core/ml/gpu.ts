@@ -168,20 +168,40 @@ interface NetLayout {
 }
 
 let devicePromise: Promise<GPUDevice | null> | null = null;
-export function gpuDevice(): Promise<GPUDevice | null> {
-  if (!devicePromise)
-    devicePromise = (async () => {
+/** Ask for the GPU, but never wait forever: a wedged driver would otherwise leave a run "starting" for ever.
+ *  A failed or lost device is forgotten so the next run can try again (or fall back to the CPU). */
+export function gpuDevice(timeoutMs = 8000): Promise<GPUDevice | null> {
+  if (!devicePromise) {
+    const attempt = (async () => {
       const nav: any = typeof navigator !== 'undefined' ? navigator : null;
       if (!nav?.gpu) return null;
       try {
         const ad = await nav.gpu.requestAdapter({ powerPreference: 'high-performance' });
         if (!ad) return null;
-        return await ad.requestDevice({ requiredLimits: { maxStorageBufferBindingSize: Math.min(ad.limits.maxStorageBufferBindingSize, 1 << 30), maxBufferSize: Math.min(ad.limits.maxBufferSize, 1 << 30) } });
+        const d: GPUDevice = await ad.requestDevice({ requiredLimits: { maxStorageBufferBindingSize: Math.min(ad.limits.maxStorageBufferBindingSize, 1 << 30), maxBufferSize: Math.min(ad.limits.maxBufferSize, 1 << 30) } });
+        d.lost.then(() => {
+          devicePromise = null;
+        });
+        return d;
       } catch {
         return null;
       }
     })();
+    const timeout = new Promise<null>((res) => setTimeout(() => res(null), timeoutMs));
+    devicePromise = Promise.race([attempt, timeout]).then((d) => {
+      if (!d) devicePromise = null;
+      return d;
+    });
+  }
   return devicePromise;
+}
+/** Give the GPU back when a run ends (each run lives in its own worker). */
+export async function releaseGpuDevice() {
+  const p = devicePromise;
+  devicePromise = null;
+  try {
+    (await p)?.destroy();
+  } catch {}
 }
 
 export async function gpuName(): Promise<string> {

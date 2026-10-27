@@ -11,7 +11,7 @@ import { sim } from './sim/controller';
 import { trainer } from './train/manager';
 import { templates } from '../library/templates';
 import { newFromTemplate, activeScenario, setActive, addObjectAt, pickFilesToImport, deleteItem, duplicateObject, addComponent } from './actions';
-import { openProjectFile, openProjectFolder, recentProjects, saveProject, canUseFolders, loadCached, exportProjectJson, type RecentEntry } from './persist';
+import { openProjectFile, openProjectFolder, recentProjects, saveProject, canUseFolders, listBackups, restoreBackup, loadCached, exportProjectJson, type RecentEntry } from './persist';
 import { registries } from '../core/registries';
 import { DefineComponentModal } from './panels/entity';
 import { DescribeGoalModal } from './panels/reward';
@@ -233,6 +233,16 @@ function TopBar() {
       { label: 'Open .zip / .json…', icon: 'file', run: openProjectFile },
       { label: 'Save', icon: 'save', desc: 'Ctrl+S', run: () => saveProject() },
       { label: canUseFolders() ? 'Save as folder…' : 'Download .zip', icon: 'save', run: () => saveProject(true) },
+      {
+        label: 'Restore a backup…',
+        icon: 'history',
+        desc: 'automatic, every 5 min',
+        run: async () => {
+          const list = await listBackups();
+          if (!list.length) return studio().toast({ level: 'info', title: 'No backups yet', body: 'Backups are taken automatically every 5 minutes while you work.' });
+          showMenu({ clientX: 200, clientY: 60 }, list.map((b) => ({ label: `${b.name} · ${new Date(b.t).toLocaleString()}`, desc: b.steps ? `${b.steps.toLocaleString()} steps trained` : '', icon: 'history', run: () => restoreBackup(b.key) })));
+        },
+      },
       { label: 'Export project.json (for the CLI)', icon: 'export', run: exportProjectJson },
       { label: 'Import asset…', icon: 'import', run: pickFilesToImport },
       { label: 'Guides: build every template from scratch…', icon: 'book', run: () => studio().openModal('guides') },

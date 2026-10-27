@@ -15,6 +15,9 @@ export interface LiveRun {
   thumbs: Thumb[];
   workers: number;
   started: number;
+  /** last time the worker said anything (metric, log, status); used to spot a stuck run */
+  lastMsg: number;
+  warned?: boolean;
   league?: { entries: NonNullable<RunRecord['league']>; elo: number };
   lastMetric?: MetricPoint;
 }
@@ -57,6 +60,8 @@ class TrainManager {
       s.toast({ level: 'bad', title: 'No training config selected' });
       return null;
     }
+    // clear leftovers: runs the editor still lists as live but that have been silent for 3 minutes
+    for (const [id, l] of [...this.live]) if (Date.now() - l.lastMsg > 180000 && studio().project?.runs.find((x) => x.id === id)?.status !== 'paused') this.finish(id, 'failed', 'Closed: no response for 3 minutes.');
     const config: TrainConfigDoc = JSON.parse(JSON.stringify({ ...base, ...o.overrides }));
     if (o.forkFrom?.checkpointId) config.warmStartCheckpointId = o.forkFrom.checkpointId;
     // version the entity, reward and brain this run trains on
@@ -91,9 +96,10 @@ class TrainManager {
     const needed = new Set([config.warmStartCheckpointId, ...proj.brains.map((b) => b.activeCheckpointId)].filter(Boolean));
     const slim = { ...proj, checkpoints: proj.checkpoints.filter((c) => needed.has(c.id)), runs: [], exports: [], versions: [], trash: [] };
     const worker = new Worker(new URL('../../workers/train.worker.ts', import.meta.url), { type: 'module' });
-    const live: LiveRun = { worker, thumbs: [], workers, started: Date.now() };
+    const live: LiveRun = { worker, thumbs: [], workers, started: Date.now(), lastMsg: Date.now() };
     this.live.set(run.id, live);
     worker.onmessage = (e) => this.onMessage(run.id, e.data);
+    worker.onmessageerror = () => this.finish(run.id, 'failed', 'The training worker sent data the editor could not read.');
     worker.onerror = (e) => {
       studio().log(`Training worker crashed: ${e.message}`, 'error', 'train');
       this.finish(run.id, 'failed');
@@ -103,14 +109,20 @@ class TrainManager {
     // never leave the user staring at an unrelated screen: jump to Train and say it started
     if (s.workspace !== 'train') s.setWorkspace('train');
     s.toast({ level: 'good', title: `${run.name} started`, body: 'Curves appear after the first batch. Watch the Console tab if nothing moves.' });
-    // watchdog: no numbers after 25 s means something is stuck (a bad scenario, a crashed worker)
-    setTimeout(() => {
+    // watchdog: a run that goes quiet (no results, logs or status) for a minute is stuck; say so and offer the way out
+    const dog = setInterval(() => {
       const l = this.live.get(run.id);
-      if (l && !l.lastMetric) {
-        studio().toast({ level: 'warn', title: `${run.name}: no data yet after 25 s`, body: 'Episodes may be very long, or the scenario has no learner. Check the Console tab; Stop and shorten the episode length if needed.' });
-        studio().log(`${run.name}: still waiting for the first batch of results (${l.workers} workers).`, 'warn', 'train');
-      }
-    }, 25000);
+      if (!l) return clearInterval(dog);
+      const cur = studio().project?.runs.find((x) => x.id === run.id);
+      if (cur?.status === 'paused') return;
+      const quiet = (Date.now() - l.lastMsg) / 1000;
+      const first = !l.lastMetric;
+      if (quiet > (first ? 25 : 90) && !l.warned) {
+        l.warned = true;
+        studio().toast({ level: 'warn', title: `${run.name} looks stuck (${Math.round(quiet)} s quiet)`, body: 'Press Stop in the Runs list; if that does nothing it is force-closed after 8 s. Then press Train again. Very long episodes or huge populations can also look like this.' });
+        studio().log(`${run.name}: no news from the training worker for ${Math.round(quiet)} s.`, 'warn', 'train');
+      } else if (quiet < 10) l.warned = false;
+    }, 5000);
     s.log(`${run.name} started: ${workers} CPU workers × ${config.envsPerWorker} worlds.`, 'info', 'train');
     this.emit();
     return run.id;
@@ -119,6 +131,7 @@ class TrainManager {
   private onMessage(runId: string, m: any) {
     const s = studio();
     const live = this.live.get(runId);
+    if (live) live.lastMsg = Date.now();
     switch (m.type) {
       case 'metric': {
         const arr = this.pendingMetrics.get(runId) ?? [];
@@ -223,7 +236,24 @@ class TrainManager {
     this.live.get(runId)?.worker.postMessage({ cmd: 'resume' });
   }
   stop(runId: string) {
-    this.live.get(runId)?.worker.postMessage({ cmd: 'stop' });
+    const l = this.live.get(runId);
+    if (!l) return;
+    l.worker.postMessage({ cmd: 'stop' });
+    // a worker stuck inside a long step never reads the message: after 8 s close it by force
+    setTimeout(() => {
+      if (this.live.get(runId) === l) {
+        studio().log('The run did not stop in time; closing its worker by force.', 'warn', 'train');
+        studio().patchRun(runId, (r) => (r.status = 'stopped'));
+        this.finish(runId, 'stopped');
+      }
+    }, 8000);
+  }
+  /** Emergency reset: close every training worker (the project and saved brains are untouched). */
+  killAll() {
+    for (const id of [...this.live.keys()]) {
+      studio().patchRun(id, (r) => (r.status = 'stopped'));
+      this.finish(id, 'stopped');
+    }
   }
 
   /** Fork: a new run that warm-starts from a run's best (or chosen) checkpoint with changed settings. */

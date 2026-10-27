@@ -7,7 +7,7 @@ import { installPlugin, loadProjectExtensions } from './core/plugins';
 import { browserImporters } from './ui/viewport/assets';
 import { App } from './ui/App';
 import { studio } from './ui/store';
-import { loadCached } from './ui/persist';
+import { loadCached, initPersistence } from './ui/persist';
 import { sim } from './ui/sim/controller';
 import { trainer } from './ui/train/manager';
 import { newFromTemplate } from './ui/actions';
@@ -33,6 +33,7 @@ async function start() {
     studio().log(`Restored ${cached.name} from the browser cache.`, 'info');
   } else studio().setWelcome(true);
   root.render(<App />);
+  initPersistence();
   // automation hook (tests, scripting from devtools)
   (window as any).creatureLab = { studio, sim, trainer, newFromTemplate };
 }
