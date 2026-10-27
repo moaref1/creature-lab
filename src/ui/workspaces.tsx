@@ -130,7 +130,7 @@ workspaces.registerAll([
       { panel: 'rewardGraph', ref: 'rewardView', dir: 'below', h: 330 },
       { panel: 'terms', ref: 'rewardView', dir: 'right', w: 340 },
       { panel: 'scenarios', ref: 'terms', dir: 'below', h: 330 },
-      { panel: 'properties', ref: 'scenarios', dir: 'within' },
+      { panel: 'properties', ref: 'rewardGraph', dir: 'right', w: 340 },
     ],
   },
   {

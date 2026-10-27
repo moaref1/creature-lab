@@ -1,6 +1,6 @@
 // Editor actions shared by panels, menus and the command palette.
 import { registries } from '../core/registries';
-import type { AssetDoc, ComponentDef, ProjectDoc, SceneObject } from '../core/types';
+import type { ScenarioDoc, AssetDoc, ComponentDef, ProjectDoc, SceneObject } from '../core/types';
 import { obj as mkObj, comp as mkComp, layer as mkLayer, G } from '../library/build';
 import { templates } from '../library/templates';
 import { softDelete, usedBy, COLLECTION_OF } from '../core/project/versioning';
@@ -282,4 +282,23 @@ export function scatterObject(id: string, opt: { count: number; radius: number; 
     }
     s.edit(`Scatter ${opt.count} × ${o.name}`, (d) => d.worlds.find((x) => x.id === w.id)!.objects.push(...copies));
   }
+}
+
+/** A new world (copy of a scenario's world) plus a scenario in it with the same creatures and brains.
+ *  Saved brains belong to the brain, not the world, so they play in the copy right away. */
+export function newTestWorld(scenarioId: string): string | null {
+  const s = studio();
+  const p = s.project!;
+  const src = p.scenarios.find((x) => x.id === scenarioId);
+  const w = src && p.worlds.find((x) => x.id === src.worldId);
+  if (!src || !w) return null;
+  const nw = { ...JSON.parse(JSON.stringify(w)), id: uid('world'), name: `${w.name} test ${p.worlds.length + 1}` };
+  const sc: ScenarioDoc = { ...JSON.parse(JSON.stringify(src)), id: uid('scn'), name: `${nw.name}`, worldId: nw.id, enabled: true };
+  s.edit('New test world', (d) => {
+    d.worlds.push(nw);
+    d.scenarios.push(sc);
+    d.settings.activeWorldId = nw.id;
+    d.settings.activeScenarioId = sc.id;
+  });
+  return sc.id;
 }

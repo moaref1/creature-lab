@@ -163,6 +163,11 @@ export function RunDashboardPanel() {
         <Kpi k="Time" v={formatDuration(run.wallTime)} />
         <Kpi k="ETA" v={live?.estimate ? formatDuration(live.estimate.secondsLeft) : '—'} />
       </div>
+      {!ms.length && (run.status === 'queued' || run.status === 'running') && (
+        <div className="card" style={{ marginBottom: 10 }}>
+          <Icon name="train" size={13} /> Warming up: the first batch of episodes is still running, so no curve yet. Slow? Shorten the episode length in the scenario.
+        </div>
+      )}
       <LineChart x={x} series={series} hidden={hidden} height={200} markers={markers} smooth={smooth} />
       <Legend series={series} hidden={hidden} toggle={(n) => setHidden((s) => (s.has(n) ? (s.delete(n), new Set(s)) : new Set(s.add(n))))} />
       <div className="row" style={{ gap: 10, marginTop: 10, alignItems: 'stretch' }}>

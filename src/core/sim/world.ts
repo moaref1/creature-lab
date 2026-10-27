@@ -162,6 +162,8 @@ export interface SimEvent {
 }
 
 export interface SimOptions {
+  /** Draw bones and links even when a creature has a skin (recordings cannot carry the skin). */
+  showBones?: boolean;
   project: ProjectDoc;
   scenarioId: string;
   seed?: number;
@@ -927,7 +929,7 @@ export class SimWorld {
       const vel = e.body ? this.physics.linvel(e.body.root) : ([0, 0, 0] as V3);
       // eyes and glow sit on the skin when there is one, else on the root part
       const main = skin ?? ds.find((d) => d.part === 'root') ?? ds.find((d) => d.part === 'head') ?? ds[0];
-      const showBones = !!v.showBones || this.opts.mode === 'edit';
+      const showBones = !!v.showBones || this.opts.mode === 'edit' || !!this.opts.showBones;
       for (const d of ds) {
         if (d.link) {
           if (skin && !showBones) d.hidden = true;

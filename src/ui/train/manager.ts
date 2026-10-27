@@ -100,6 +100,17 @@ class TrainManager {
     };
     worker.postMessage({ cmd: 'start', project: slim, config, run, workers });
     s.select({ kind: 'run', id: run.id });
+    // never leave the user staring at an unrelated screen: jump to Train and say it started
+    if (s.workspace !== 'train') s.setWorkspace('train');
+    s.toast({ level: 'good', title: `${run.name} started`, body: 'Curves appear after the first batch. Watch the Console tab if nothing moves.' });
+    // watchdog: no numbers after 25 s means something is stuck (a bad scenario, a crashed worker)
+    setTimeout(() => {
+      const l = this.live.get(run.id);
+      if (l && !l.lastMetric) {
+        studio().toast({ level: 'warn', title: `${run.name}: no data yet after 25 s`, body: 'Episodes may be very long, or the scenario has no learner. Check the Console tab; Stop and shorten the episode length if needed.' });
+        studio().log(`${run.name}: still waiting for the first batch of results (${l.workers} workers).`, 'warn', 'train');
+      }
+    }, 25000);
     s.log(`${run.name} started: ${workers} CPU workers × ${config.envsPerWorker} worlds.`, 'info', 'train');
     this.emit();
     return run.id;

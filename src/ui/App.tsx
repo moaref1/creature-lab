@@ -21,7 +21,7 @@ import { formatNum } from '../core/util';
 import { loadProjectExtensions } from '../core/plugins';
 import { allComponentDefs } from '../core/sim/resolve';
 
-const LAYOUT_VERSION = 'v7';
+const LAYOUT_VERSION = 'v8';
 
 class Boundary extends Component<{ name: string; children: React.ReactNode }, { err: Error | null }> {
   state = { err: null as Error | null };

@@ -15,7 +15,7 @@ export const guides: Guide[] = Object.entries(files)
   .sort((a, b) => a.title.localeCompare(b.title));
 
 /** Which guide rebuilds a template (by template id). */
-export const templateGuide: Record<string, string> = { fly: 'how-to-build-a-fly', smartFlies: 'how-to-build-smart-flies', sketch: 'how-to-build-a-sketch-creature', tidepool: 'how-to-build-tidepool' };
+export const templateGuide: Record<string, string> = { fly: 'how-to-build-a-fly', smartFlies: 'how-to-build-smart-flies', sketch: 'how-to-build-a-sketch-creature', tidepool: 'how-to-build-tidepool', climber: 'how-to-build-a-climber' };
 
 // ---------- tiny markdown renderer (headings, lists, tables, bold, italics, code) ----------
 function inline(s: string, key: string | number): React.ReactNode {

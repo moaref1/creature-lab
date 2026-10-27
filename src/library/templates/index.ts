@@ -13,6 +13,7 @@ import { flyTemplate } from './fly';
 import { smartFliesTemplate } from './smartFlies';
 import { sketchTemplate } from './sketch';
 import { tidepoolTemplate } from './tidepool';
+import { climberTemplate } from './climber';
 
 export interface TemplateInfo {
   id: string;
@@ -70,6 +71,7 @@ export const templates: TemplateInfo[] = [
   { id: 'npc', name: 'Village NPCs', blurb: 'Needs, custom Mood & Bond, utility AI stacked over a policy.', dim: '2D', icon: 'heart', shows: ['user components', 'emotion rules', 'brain stacking'], phase: 2, build: npcTemplate },
   { id: 'arm', name: 'Robot arm', blurb: 'Three-joint arm reaches random targets in 3D.', dim: '3D', icon: 'robot', shows: ['fixed-base robot', '3D joints', 'URDF-ready'], phase: 2, build: armTemplate },
   { id: 'fly', name: 'Fly', blurb: 'Four wings (thrusters) learn to lift off, balance and fly to a flower.', dim: '3D', icon: 'zap', shows: ['thrusters', 'flight', 'random targets'], phase: 2, build: flyTemplate },
+  { id: 'climber', name: 'Climber', blurb: 'A four-limbed creature learns to climb stairs, gentle to tall; then test the same brain in worlds you build.', dim: '2D', icon: 'skeleton', shows: ['body sketcher', 'curriculum', 'neuroevolution', 'test in new worlds'], phase: 1, build: climberTemplate },
   { id: 'tidepool', name: 'Tidepool', blurb: 'A living pool: fish with feelings flock, fear the eel, make friends, grieve, and learn to trust you.', dim: '2D', icon: 'heart', shows: ['emotions', 'ecosystem', 'instinct + learning', 'feed by hand'], phase: 2, build: tidepoolTemplate },
   { id: 'sketch', name: 'Sketch creature', blurb: 'Draw joints, bones and muscles by clicking, then evolve a brain that runs (the first prototype).', dim: '2D', icon: 'skeleton', shows: ['body sketcher', 'neuroevolution', 'muscles'], phase: 1, build: sketchTemplate },
   { id: 'smartFlies', name: 'Smart flies', blurb: 'Nature of Code Smart Rockets: a population evolves around a wall to a flower.', dim: '2D', icon: 'zap', shows: ['genetic algorithm', 'DNA', 'neuroevolution', 'population view'], phase: 2, build: smartFliesTemplate },

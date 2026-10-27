@@ -7,6 +7,7 @@ import { formatNum, uid } from '../../core/util';
 import { studio, useStudio } from '../store';
 import { Icon } from '../icons/icons';
 import { Panel, Empty } from '../components/common';
+import { newTestWorld } from '../actions';
 import { ViewRenderer } from '../viewport/view';
 import type { Drawable } from '../../core/sim/world';
 
@@ -17,6 +18,8 @@ interface EvalState {
   grid: { label: string; rec: Recording; ck: string }[];
   recA: Recording | null;
   recB: Recording | null;
+  /** scenario to test in; '' = the active one */
+  scenarioId: string;
   frame: number;
   playing: boolean;
   busy: string;
@@ -25,7 +28,7 @@ interface EvalState {
   gallery: { rec: Recording; frame: number; message: string; ck: string }[];
   set(p: Partial<EvalState>): void;
 }
-export const useEval = create<EvalState>((set) => ({ a: '', b: '__base', mode: 'pair', grid: [], recA: null, recB: null, frame: 0, playing: false, busy: '', results: null, progress: 0, gallery: [], set: (p) => set(p) }));
+export const useEval = create<EvalState>((set) => ({ a: '', b: '__base', mode: 'pair', scenarioId: '', grid: [], recA: null, recB: null, frame: 0, playing: false, busy: '', results: null, progress: 0, gallery: [], set: (p) => set(p) }));
 
 let worker: Worker | null = null;
 const pending = new Map<string, { res: (v: any) => void; onProgress?: (p: number) => void }>();
@@ -70,7 +73,8 @@ function resolveA(p: ProjectDoc, a: string) {
 
 function runOne(p: ProjectDoc, id: string, seed: number) {
   const brainId = brainOf(p);
-  const sc = p.settings.activeScenarioId ?? p.scenarios[0].id;
+  const want = useEval.getState().scenarioId;
+  const sc = p.scenarios.find((x) => x.id === want)?.id ?? p.settings.activeScenarioId ?? p.scenarios[0].id;
   const c = p.checkpoints.find((x) => x.id === id);
   return call({ cmd: 'episode', project: slim(p, [c]), scenarioId: sc, seed, brainPolicies: { [brainId]: c ?? null }, label: ckLabel(c) });
 }
@@ -107,8 +111,9 @@ export async function replayPair(seed = Math.floor(Math.random() * 1e6)) {
 
 export function CheckpointsPanel() {
   const project = useStudio((s) => s.project);
-  const { a, b, set, mode } = useEval();
+  const { a, b, set, mode, scenarioId } = useEval();
   if (!project) return null;
+  const tsc = project.scenarios.find((x) => x.id === scenarioId)?.id ?? project.settings.activeScenarioId ?? project.scenarios[0]?.id ?? '';
   const cks = savedBrains(project);
   const A = resolveA(project, a);
   const row = (id: string, c?: CheckpointDoc) => (
@@ -124,6 +129,30 @@ export function CheckpointsPanel() {
   );
   return (
     <Panel sub={mode === 'all' ? 'All at once: every saved brain plays the same episode' : 'Pick A and B to compare side by side'}>
+      <div className="section-title" style={{ marginTop: 0 }}>Test in</div>
+      <div className="row" style={{ gap: 4, marginBottom: 4 }}>
+        <select className="select grow" value={tsc} onChange={(e) => set({ scenarioId: e.target.value, recA: null, recB: null, grid: [] })} title="Any world works: the same saved brains play in it">
+          {project.scenarios.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name} · {project.worlds.find((w) => w.id === x.worldId)?.name}
+            </option>
+          ))}
+        </select>
+        <button
+          className="btn small"
+          title="Copy this world, edit it in World (add walls, steps, a taller cliff), then come back and Replay: the same learned brains play in it"
+          onClick={() => {
+            const id = newTestWorld(tsc);
+            if (id) {
+              set({ scenarioId: id, recA: null, recB: null, grid: [] });
+              studio().setWorkspace('world');
+              studio().toast({ level: 'good', title: 'New test world', body: 'Edit it here, then go to Evaluate and press Replay. Your trained brains are reused.' });
+            }
+          }}
+        >
+          <Icon name="plus" size={12} /> New world
+        </button>
+      </div>
       <div className="hint" style={{ marginBottom: 8 }}>Saved brains are snapshots taken while training. By default A is your best one and B is the untrained baseline.</div>
       {cks.map((c) => row(c.id, c))}
       {row('__base')}
@@ -144,6 +173,15 @@ function applyFrame(rec: Recording, i: number): Drawable[] {
       d.pos = [f.poses[o], f.poses[o + 1], f.poses[o + 2]];
       d.quat = [f.poses[o + 3], f.poses[o + 4], f.poses[o + 5], f.poses[o + 6]];
     }
+  });
+  // bones and muscles stretch every frame: restore their length and contract/extend colour
+  rec.linkIdx?.forEach((di, k) => {
+    const d = ds[di];
+    const h = f?.links?.[k * 2];
+    if (!d || h === undefined) return;
+    d.shape = { ...d.shape, halfHeight: Math.max(0.005, h) };
+    const c = f!.links![k * 2 + 1];
+    if (c) d.color = c === 1 ? '#C93A64' : '#2873B8';
   });
   return ds;
 }
