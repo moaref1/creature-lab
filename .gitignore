@@ -1,0 +1,6 @@
+node_modules
+dist
+dist-desktop
+*.log
+__pycache__
+.creaturelab-runs

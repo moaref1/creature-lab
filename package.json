@@ -1,0 +1,79 @@
+{
+  "name": "creature-lab",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Creature Lab: a studio for building, training and shipping intelligent agents in 2D and 3D.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "cli": "tsx cli/creaturelab.ts",
+    "test": "tsx cli/selftest.ts",
+    "desktop": "vite build && electron .",
+    "dist:win": "vite build && electron-builder --win portable nsis",
+    "dist:linux": "vite build && electron-builder --linux AppImage"
+  },
+  "dependencies": {
+    "@dimforge/rapier2d-compat": "^0.21.0",
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "@xyflow/react": "^12.12.0",
+    "dockview": "^8.6.2",
+    "dockview-react": "^8.6.2",
+    "fflate": "^0.8.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@webgpu/types": "^0.1.74",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "main": "desktop/main.cjs",
+  "author": "Creature Lab",
+  "build": {
+    "appId": "com.creaturelab.studio",
+    "productName": "Creature Lab",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "dist/**",
+      "desktop/main.cjs",
+      "desktop/icon.png",
+      "package.json"
+    ],
+    "icon": "desktop/icon.png",
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "desktop/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Creature Lab"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development"
+    },
+    "portable": {
+      "artifactName": "CreatureLab-${version}-portable.exe"
+    }
+  }
+}
